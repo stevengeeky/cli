@@ -1171,6 +1171,77 @@ function uploadDataset(headers, datatypeSearch, projectSearch, options) {
 }
 
 /**
+ * Find a list of apps to run 
+ * @param {string} inputs 
+ * @param {string} output 
+ * @returns {Promise<any>}
+ */
+function computePossiblePipeline(headers, inputs, output) {
+	let setA, setB, apps, datatypeTable = {};
+	
+	queryDatatypes(headers)
+	.then(_datatypes => {
+		_datatypes.forEach(datatype => datatypeTable[datatype._id] = datatype);
+		return queryDatasets(headers, input);
+	})
+	.then(_inputs => {
+		setA = _inputs.map(input => input.datatype);
+		return queryDatasets(headers, output);
+	})
+	.then(_outputs => {
+		setB = _outputs.map(output => output.datatype);
+		return queryApps(headers);
+	})
+	.then(_apps => {
+		apps = _apps.map(app => { return { 	inputs: app.inputs.sort((a,b) => a > b),
+											outputs: app.outputs.sort((a,b) => a > b) } });
+		
+		function traverse(have, want, apps, tree) {
+			if (apps.length == 0 || want.length == 0) return {};
+			
+			for (let i = 0; i < apps.length; i++) {
+				let attempt = tryApp(apps[i], have, want);
+				// TODO: create efficient recursive algorithm to do this
+			}
+			let result = {};
+			return {};
+		}
+		
+		function arraySubstring(arr, start, end) {
+			end = end || arr.length;
+			let result = [];
+			for (let i = start; i < end; i++) result.push(arr[i]);
+			return result;
+		}
+		
+		// inputs and outputs are sorted
+		// return the outputs left to process by other apps, if the app can run given the inputs/outputs
+		function tryApp(app, inputs, outputs) {
+			return filterList(app.inputs, inputs).length > 0 ? false :
+					{ need: filterList(outputs, app.outputs), have: filterList(app.outputs, outputs) };
+		}
+		
+		// filter all of the items in sorted list b out of sorted list a
+		function filterList(listA, listB) {
+			let indexA = 0, indexB = 0;
+			let notShared = [];
+			
+			while (indexA < listA.length && indexB < listB.length) {
+				let itemA = listA[indexA], itemB = listB[indexB];
+				if (itemA == itemB) indexA++;
+				else if (itemA < itemB) {
+					indexA++;
+					notShared.push(itemA);
+				}
+				else indexB++;
+			}
+			
+			return notShared;
+		}
+	});
+}
+
+/**
  * @desc Converts object with maybe null entries to an object with all nonnull values
  * @param {any} o
  * @returns {any}
